@@ -1,0 +1,335 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Forma3D · Editor 3D</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root{--bg:#f4f5f8;--panel:#fff;--text:#1d2330;--muted:#6b7385;--accent:#3b6fe0;--bd:#d9dde6;--btn:#eef0f5;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15171c;--panel:#1f222a;--text:#e8eaf0;--muted:#98a0b3;--accent:#6b9bff;--bd:#323744;--btn:#2a2e38}}
+:root[data-theme="dark"]{--bg:#15171c;--panel:#1f222a;--text:#e8eaf0;--muted:#98a0b3;--accent:#6b9bff;--bd:#323744;--btn:#2a2e38}
+html,body{height:100%;margin:0}body{background:var(--bg);color:var(--text);font:14px system-ui,-apple-system,"Segoe UI",sans-serif}
+#app{height:100%;display:flex;flex-direction:column}
+header,.tl{display:flex;gap:6px;align-items:center;padding:7px 10px;background:var(--panel);overflow-x:auto;flex:none}
+header{border-bottom:1px solid var(--bd)}.tl{border-top:1px solid var(--bd)}.tl input[type=range]{flex:1;min-width:120px}
+header b{margin-right:6px;white-space:nowrap}.sp{flex:1}.sep{width:1px;height:22px;background:var(--bd);margin:0 4px}
+button{font:inherit;color:var(--text);background:var(--btn);border:1px solid var(--bd);border-radius:8px;padding:7px 10px;cursor:pointer;white-space:nowrap}
+button:hover:not(:disabled){border-color:var(--accent)}button:disabled{opacity:.4;cursor:default}button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+main{flex:1;display:flex;min-height:0}
+.side{width:190px;flex:none;background:var(--panel);padding:10px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+#L{border-right:1px solid var(--bd)}#R{border-left:1px solid var(--bd)}
+h3{margin:8px 0 0;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.g{display:grid;grid-template-columns:1fr 1fr;gap:6px}.g button{padding:9px 4px}
+#view{flex:1;min-width:0;position:relative}#view canvas{display:block;width:100%;height:100%}
+label{display:flex;align-items:center;gap:8px;color:var(--muted)}label input[type=range]{flex:1;min-width:0}
+input[type=color]{width:100%;height:36px;border:1px solid var(--bd);border-radius:8px;background:none;padding:2px}
+#none{color:var(--muted);line-height:1.4}
+#hint{padding:6px 12px;background:var(--panel);border-top:1px solid var(--bd);color:var(--muted);flex:none;min-height:18px}
+#tip{position:fixed;display:none;max-width:240px;background:#10131a;color:#fff;padding:7px 10px;border-radius:8px;font-size:13px;line-height:1.35;z-index:9;pointer-events:none;box-shadow:0 4px 14px #0005}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--accent);color:#fff;padding:8px 14px;border-radius:20px;display:none;z-index:9;max-width:90%;text-align:center}
+@media(max-width:720px){main{flex-direction:column}.side{width:auto;flex-direction:row;flex-wrap:wrap;max-height:30%;border:0!important;border-top:1px solid var(--bd)!important}#L{order:2}#R{order:3}#view{order:1}.g{display:flex;flex-wrap:wrap}h3{width:100%}}
+</style></head><body><div id="app">
+<header>
+<b>🧊 Forma3D</b>
+<button data-md="obj" data-tip="Modo Objeto: mueve, rota y escala objetos completos (Tab alterna con Edición)">▣ Objeto</button>
+<button data-md="edit" data-tip="Modo Edición: modifica vértices, aristas y caras del objeto seleccionado (Tab)">✎ Edición</button>
+<button data-md="sculpt" data-tip="Modo Escultura: moldea el objeto con un pincel, como si fuera arcilla">🖌 Escultura</button>
+<span class="sep"></span>
+<button id="undo" data-tip="Deshacer el último cambio (Ctrl+Z)">↶</button>
+<button id="redo" data-tip="Rehacer (Ctrl+Y)">↷</button>
+<button id="imp" data-tip="Abre un modelo .obj, .glb o .gltf y lo convierte en objetos editables">📂 Importar</button>
+<button id="eobj" data-tip="Guarda la escena como OBJ (se guarda como .txt: cámbiale la extensión a .obj)">⬇ OBJ</button>
+<button id="egl" data-tip="Guarda la escena como glTF (se guarda como .json: cámbiale la extensión a .gltf)">⬇ glTF</button>
+<span class="sp"></span>
+<button id="home" data-tip="Volver a la vista inicial (F)">🎯</button>
+<input type="file" id="file" accept=".obj,.glb,.gltf" hidden>
+</header>
+<main>
+<aside class="side" id="L">
+<div data-for="obj"><h3>Añadir forma</h3><div class="g">
+<button data-s="cubo" data-tip="Añade un cubo editable">⬛ Cubo</button><button data-s="esfera" data-tip="Añade una esfera editable">⚪ Esfera</button>
+<button data-s="cilindro" data-tip="Añade un cilindro editable">🥫 Cilindro</button><button data-s="cono" data-tip="Añade un cono editable">🔺 Cono</button>
+<button data-s="toro" data-tip="Añade un toro (dona) editable">🍩 Toro</button><button data-s="plano" data-tip="Añade un plano. Subdivídelo en Edición para esculpir terreno">▭ Plano</button></div></div>
+<div data-for="obj"><h3>Luces y cámara</h3><div class="g">
+<button data-l="point" data-tip="Luz puntual: ilumina en todas direcciones, como una bombilla. Muévela para ver cómo cambian las sombras">💡 Puntual</button>
+<button data-l="sun" data-tip="Luz solar: ilumina todo desde una dirección, apuntando al centro de la escena">☀ Solar</button>
+<button data-l="spot" data-tip="Foco: un cono de luz que apunta al centro de la escena">🔦 Foco</button>
+<button id="addcam" data-tip="Añade una cámara. Muévela y rótala para encuadrar tu escena">🎥 Cámara</button>
+<button id="camv" data-tip="Mira la escena a través de la cámara. Vuelve a pulsar para salir">👁 Ver cámara</button>
+<button id="shot" data-tip="Guarda una imagen PNG de lo que ve la cámara (o de la vista actual si no hay cámara)">📷 Foto</button>
+<button id="studio" class="on" data-tip="Activa o apaga la luz de estudio. Apágala para ver solo tus propias luces">🏠 Luz base</button></div></div>
+<div data-for="obj edit"><h3>Transformar</h3><div class="g" id="modes">
+<button class="on" data-m="translate" data-tip="Mover con las flechas de colores (G)">✥ Mover</button><button data-m="rotate" data-tip="Rotar con los círculos de colores (R)">⟳ Rotar</button>
+<button data-m="scale" data-tip="Escalar con los cubitos (S)">⤢ Escalar</button><button id="snap" data-tip="Imán: movimientos en pasos exactos">🧲 Imán</button></div></div>
+<div data-for="edit"><h3>Seleccionar</h3><div class="g" id="subs">
+<button data-u="v" data-tip="Elegir vértices (puntos). Clic en un objeto cerca del punto. Shift suma (tecla 1)">• Vértice</button>
+<button data-u="e" data-tip="Elegir aristas (líneas). Shift suma (tecla 2)">╱ Arista</button>
+<button data-u="f" class="on" data-tip="Elegir caras (superficies). Shift suma (tecla 3)">◼ Cara</button>
+<button id="all" data-tip="Selecciona todo el objeto (A)">Todo</button></div>
+<h3>Herramientas</h3><div class="g">
+<button id="ext" data-tip="Extruir: crea volumen empujando las caras elegidas hacia afuera (E)">⇪ Extruir</button>
+<button id="ins" data-tip="Inset: crea un marco más pequeño dentro de cada cara elegida (I)">▣ Inset</button>
+<button id="sub1" data-tip="Subdividir: divide cada cara en 4 para tener más detalle">✚ Dividir</button>
+<button id="sub2" data-tip="Subdividir suave: divide y redondea la forma, como en Blender">◔ Dividir suave</button>
+<button id="delf" data-tip="Borra las caras elegidas (X)">✖ Borrar caras</button>
+<button id="bev" data-tip="Biselar: redondea o achaflana las aristas elegidas (B). Elige aristas en modo Arista, o una cara completa">◩ Biselar</button></div>
+<label data-tip="Ancho del bisel: qué tan grande es el corte en la arista">Ancho<input type="range" id="bw" min=".02" max=".4" step=".01" value=".12"></label></div>
+<div data-for="sculpt"><h3>Pincel</h3><div class="g" id="tools">
+<button data-t="inf" class="on" data-tip="Inflar: empuja la superficie hacia afuera donde pintas">⬆ Inflar</button>
+<button data-t="def" data-tip="Hundir: empuja la superficie hacia adentro">⬇ Hundir</button>
+<button data-t="smo" data-tip="Suavizar: alisa bultos y aristas">≈ Suavizar</button></div>
+<label data-tip="Tamaño del pincel">Radio<input type="range" id="rad" min=".1" max="1.5" step=".05" value=".5"></label>
+<label data-tip="Fuerza del pincel">Fuerza<input type="range" id="str" min=".1" max="1" step=".05" value=".5"></label>
+<div id="none2" style="color:var(--muted)">Consejo: en Edición usa “Dividir” varias veces para tener más puntos que esculpir.</div></div>
+</aside>
+<div id="view"></div>
+<aside class="side" id="R">
+<h3>Objeto</h3><div id="none">Haz clic en un objeto para editarlo.</div>
+<div id="props" style="display:none;flex-direction:column;gap:8px">
+<input type="color" id="col" data-tip="Color del objeto seleccionado">
+<div data-for="obj"><label data-tip="Ancho (eje X)">X<input type="range" id="sx" min=".1" max="5" step=".05"></label>
+<label data-tip="Alto (eje Y)">Y<input type="range" id="sy" min=".1" max="5" step=".05"></label>
+<label data-tip="Profundidad (eje Z)">Z<input type="range" id="sz" min=".1" max="5" step=".05"></label></div>
+<div id="modbox" style="display:flex;flex-direction:column;gap:8px"><label data-tip="Suavizado: la superficie se ve redonda en vez de facetada"><input type="checkbox" id="sm">Suavizado</label>
+<h3>Modificadores</h3>
+<label data-tip="Espejo: crea una copia reflejada en el eje X, ideal para modelar personajes simétricos"><input type="checkbox" id="mir">Espejo X</label>
+<label data-tip="Arreglo: repite el objeto en fila. Elige cuántas copias">Copias<input type="range" id="arn" min="1" max="10" step="1"></label>
+<label data-tip="Separación entre las copias del arreglo">Espacio<input type="range" id="aro" min=".2" max="5" step=".1"></label></div>
+<div id="litbox" style="display:none"><label data-tip="Intensidad: qué tan fuerte brilla la luz">Intensidad<input type="range" id="lint" min="0" max="4" step=".05"></label></div>
+<div data-for="obj" style="display:flex;flex-direction:column;gap:8px">
+<button id="dup" data-tip="Copia el objeto (Shift+D)">⧉ Duplicar</button><button id="del" data-tip="Borra el objeto (Supr). Puedes deshacer">🗑 Eliminar</button></div>
+</div></aside>
+</main>
+<div class="tl"><button id="play" data-tip="Reproduce la animación entre las claves (Espacio)">▶ Reproducir</button>
+<input type="range" id="fr" min="0" max="120" step="1" value="0" data-tip="Línea de tiempo: arrastra para ir a otro fotograma"><span id="frl" style="min-width:90px">Fotograma 0</span>
+<button id="key" data-tip="Guarda la posición, rotación y tamaño actuales del objeto en este fotograma (K). Crea 2 claves en fotogramas distintos para animar">◆ Insertar clave</button>
+<button id="ukey" data-tip="Borra la clave del objeto en este fotograma">◇ Quitar</button><span id="kl" style="color:var(--muted)"></span></div>
+<div id="hint"></div></div>
+<div id="tip"></div><div id="toast"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/OBJExporter.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/GLTFExporter.js"></script>
+<script>
+const $=s=>document.querySelector(s),V3=THREE.Vector3;
+const DEFS={obj:"Clic: seleccionar · Arrastrar: girar la vista · Clic derecho: desplazar · Tab: modo edición",edit:"Clic: elegir vértice, arista o cara (Shift suma) · E extruir · Tab: volver a Objeto",sculpt:"Arrastra sobre el objeto para esculpir · Si cuesta moldearlo, usa Edición › Dividir antes"};
+let W=1,H=1,camV=false,mode="obj",sel=null,cur=null,hist=[],hi=-1,selV=new Set(),sub="f",tool="inf",frame=0,playing=false,sc=null,drag=null,down=null;
+const dark=matchMedia("(prefers-color-scheme: dark)").matches,EC=dark?0x8a93a6:0x2a303c,VC=dark?[.85,.85,.9]:[.1,.1,.12];
+const view=$("#view"),renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));view.appendChild(renderer.domElement);
+const scene=new THREE.Scene();scene.background=new THREE.Color(dark?0x1b1d22:0xe9ecf1);
+const cam=new THREE.PerspectiveCamera(50,1,.1,500);
+const hemi=new THREE.HemisphereLight(0xffffff,0x667788,.85),sun=new THREE.DirectionalLight(0xffffff,.9);scene.add(hemi);sun.position.set(5,8,4);scene.add(sun);
+const grid=new THREE.GridHelper(20,20,dark?0x666b77:0x8899aa,dark?0x333741:0xc5ccd6);scene.add(grid);
+const world=new THREE.Group();scene.add(world);const lightsG=new THREE.Group();scene.add(lightsG);
+const orbit=new THREE.OrbitControls(cam,renderer.domElement);orbit.enableDamping=true;
+const tc=new THREE.TransformControls(cam,renderer.domElement);scene.add(tc);
+const pivot=new THREE.Object3D();scene.add(pivot);
+const box=new THREE.BoxHelper(new THREE.Object3D(),0xffb020);box.visible=false;scene.add(box);
+function home(){cam.position.set(4,3.5,5);orbit.target.set(0,.5,0);orbit.update()}home();
+function resize(){const w=view.clientWidth,h=view.clientHeight;W=w;H=h;renderer.setSize(w,h);cam.aspect=w/h;cam.updateProjectionMatrix()}
+new ResizeObserver(resize).observe(view);resize();
+const clk=new THREE.Clock();
+// ---- cubo de orientación ----
+const gs=new THREE.Scene(),gcam=new THREE.PerspectiveCamera(30,1,.1,20),GS=110;
+const gtex=(t,c)=>{const k=document.createElement("canvas");k.width=k.height=128;const x=k.getContext("2d");x.fillStyle=c;x.fillRect(0,0,128,128);x.strokeStyle="#fff8";x.lineWidth=6;x.strokeRect(0,0,128,128);x.fillStyle="#fff";x.font="bold 25px system-ui,sans-serif";x.textAlign="center";x.textBaseline="middle";x.fillText(t,64,64);return new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(k)})};
+const gcube=new THREE.Mesh(new THREE.BoxGeometry(1.4,1.4,1.4),[["Derecha","#c0504d"],["Izquierda","#8a3b39"],["Arriba","#5aa04b"],["Abajo","#3f7335"],["Frente","#4a7bd0"],["Atrás","#365a9a"]].map(a=>gtex(...a)));gs.add(gcube);
+function drawGizmo(){gcam.position.copy(cam.position).sub(orbit.target).normalize().multiplyScalar(5);gcam.quaternion.copy(cam.quaternion);
+ renderer.autoClear=false;renderer.clearDepth();renderer.setScissorTest(true);renderer.setViewport(W-GS-10,H-GS-10,GS,GS);renderer.setScissor(W-GS-10,H-GS-10,GS,GS);renderer.render(gs,gcam);renderer.setScissorTest(false);renderer.setViewport(0,0,W,H);renderer.autoClear=true}
+function inGizmo(e){if(camV)return false;const r=cv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;return x>W-GS-10&&x<W-10&&y>10&&y<GS+10}
+function gizmoClick(e){if(!inGizmo(e))return false;const r=cv.getBoundingClientRect();mv.set(((e.clientX-r.left-(W-GS-10))/GS)*2-1,-(((e.clientY-r.top-10)/GS)*2-1));ray.setFromCamera(mv,gcam);const h=ray.intersectObject(gcube)[0];
+ if(h){const n=h.face.normal.clone(),d=cam.position.distanceTo(orbit.target);cam.position.copy(orbit.target).addScaledVector(n,d);if(Math.abs(n.y)>.9)cam.position.z+=.001;orbit.update()}return true}
+function activeCam(){const c=lightsG.children.find(m=>m.userData.cam);return c&&c.userData.pc}
+function marks(v){lightsG.children.forEach(m=>m.material.visible=v)}
+(function loop(){requestAnimationFrame(loop);const dt=clk.getDelta();if(playing)setFrame(frame+dt*24>120?0:frame+dt*24);orbit.update();if(sel&&mode==="obj")box.update();const ac=camV&&activeCam();if(ac){ac.aspect=W/H;ac.updateProjectionMatrix();renderer.render(scene,ac)}else{renderer.render(scene,cam);drawGizmo()}})();
+// ---- geometría ----
+const avg=l=>[0,1,2].map(c=>l.reduce((s,p)=>s+p[c],0)/l.length),ek=(a,b)=>a<b?a+"_"+b:b+"_"+a,d2=(a,p)=>(a[0]-p.x)**2+(a[1]-p.y)**2+(a[2]-p.z)**2;
+function newell(P,f){let x=0,y=0,z=0;for(let i=0;i<f.length;i++){const a=P.v[f[i]],b=P.v[f[(i+1)%f.length]];x+=(a[1]-b[1])*(a[2]+b[2]);y+=(a[2]-b[2])*(a[0]+b[0]);z+=(a[0]-b[0])*(a[1]+b[1])}return[x,y,z]}
+const nz=a=>{const l=Math.hypot(a[0],a[1],a[2])||1;return[a[0]/l,a[1]/l,a[2]/l]};
+function buildGeo(P,smooth){const pos=[],nor=[],tf=[],vn=P.v.map(()=>[0,0,0]),fn=P.f.map(f=>{const n=newell(P,f);f.forEach(i=>{vn[i][0]+=n[0];vn[i][1]+=n[1];vn[i][2]+=n[2]});return nz(n)});
+ P.f.forEach((f,fi)=>{for(let k=1;k<f.length-1;k++)[f[0],f[k],f[k+1]].forEach(i=>{pos.push(...P.v[i]);nor.push(...(smooth?nz(vn[i]):fn[fi]));if(i===f[0])tf.push(fi)})});
+ const tri=[];P.f.forEach((f,fi)=>{for(let k=1;k<f.length-1;k++)tri.push(fi)});
+ const geo=new THREE.BufferGeometry();geo.setAttribute("position",new THREE.Float32BufferAttribute(pos,3));geo.setAttribute("normal",new THREE.Float32BufferAttribute(nor,3));return{geo,tf:tri}}
+function mk(p,c){const m=new THREE.Mesh(new THREE.BufferGeometry(),new THREE.MeshStandardMaterial({color:c,roughness:.55,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1}));m.userData={poly:p,keys:{},mods:{mirror:false,n:1,off:1.5},smooth:false};rebuild(m);return m}
+function rebuild(m){const{geo,tf}=buildGeo(m.userData.poly,m.userData.smooth);m.geometry.dispose();m.geometry=geo;m.userData.tf=tf;
+ m.children.filter(c=>c.userData.mod).forEach(c=>m.remove(c));const d=m.userData.mods;
+ if(mode!=="edit")for(let i=0;i<d.n;i++)for(let s=0;s<(d.mirror?2:1);s++){if(!i&&!s)continue;const c=new THREE.Mesh(geo,m.material);c.userData.mod=1;c.position.x=(s?-1:1)*i*d.off;c.scale.x=s?-1:1;m.add(c)}}
+function orient(v,f,cf){f.forEach(fc=>{const n=newell({v},fc),c=avg(fc.map(j=>v[j])),o=cf(c);if(n[0]*(c[0]-o[0])+n[1]*(c[1]-o[1])+n[2]*(c[2]-o[2])<0)fc.reverse()})}
+function prim(t){const v=[],f=[],n=16,rg=[...Array(n).keys()];
+ if(t==="cubo"){for(const z of[-.5,.5])for(const[x,y]of[[-.5,-.5],[.5,-.5],[.5,.5],[-.5,.5]])v.push([x,y,z]);f.push([4,5,6,7],[1,0,3,2],[5,1,2,6],[0,4,7,3],[7,6,2,3],[0,1,5,4])}
+ else if(t==="plano"){v.push([-1,0,1],[1,0,1],[1,0,-1],[-1,0,-1]);f.push([0,1,2,3])}
+ else if(t==="cilindro"||t==="cono"){const cone=t==="cono";rg.forEach(i=>{const a=i/n*6.2832;v.push([.5*Math.cos(a),-.5,.5*Math.sin(a)])});
+  if(cone)v.push([0,.5,0]);else rg.forEach(i=>{const a=i/n*6.2832;v.push([.5*Math.cos(a),.5,.5*Math.sin(a)])});
+  rg.forEach(i=>{const j=(i+1)%n;f.push(cone?[j,i,n]:[j,i,n+i,n+j])});f.push([...rg]);if(!cone)f.push(rg.map(i=>2*n-1-i))}
+ else if(t==="esfera"){const L=8,S=12;v.push([0,.5,0],[0,-.5,0]);for(let k=1;k<L;k++)for(let i=0;i<S;i++){const p=Math.PI*k/L,a=i/S*6.2832;v.push([.5*Math.sin(p)*Math.cos(a),.5*Math.cos(p),.5*Math.sin(p)*Math.sin(a)])}
+  const r=(k,i)=>2+(k-1)*S+i%S;for(let i=0;i<S;i++){f.push([0,r(1,i),r(1,i+1)],[1,r(L-1,i+1),r(L-1,i)]);for(let k=1;k<L-1;k++)f.push([r(k,i),r(k+1,i),r(k+1,i+1),r(k,i+1)])}orient(v,f,()=>[0,0,0])}
+ else{const R=.4,q=.15,A=16,B=8;for(let i=0;i<A;i++)for(let k=0;k<B;k++){const a=i/A*6.2832,b=k/B*6.2832,d=R+q*Math.cos(b);v.push([d*Math.cos(a),q*Math.sin(b),d*Math.sin(a)])}
+  for(let i=0;i<A;i++)for(let k=0;k<B;k++){const a=(i+1)%A,b=(k+1)%B;f.push([i*B+k,a*B+k,a*B+b,i*B+b])}orient(v,f,c=>{const l=Math.hypot(c[0],c[2])||1;return[c[0]/l*R,0,c[2]/l*R]})}
+ return{v,f}}
+function subdiv(P,smooth){const V=P.v,fp=P.f.map(f=>avg(f.map(i=>V[i]))),E=new Map(),vf=V.map(()=>[]),ve=V.map(()=>new Set());
+ P.f.forEach((f,fi)=>f.forEach((a,k)=>{const b=f[(k+1)%f.length],key=ek(a,b);let e=E.get(key);if(!e)E.set(key,e={a,b,fs:[]});e.fs.push(fi);vf[a].push(fi);ve[a].add(key);ve[b].add(key)}));
+ const out=V.map((p,i)=>{if(!smooth||!vf[i].length)return p;const ks=[...ve[i]];if(ks.some(k=>E.get(k).fs.length<2))return p;const n=vf[i].length,F=avg(vf[i].map(j=>fp[j])),R=avg(ks.map(k=>{const e=E.get(k);return avg([V[e.a],V[e.b]])}));return[0,1,2].map(c=>(F[c]+2*R[c]+(n-3)*p[c])/n)}),eid=new Map();
+ E.forEach((e,k)=>{eid.set(k,out.length);out.push(smooth&&e.fs.length===2?avg([V[e.a],V[e.b],fp[e.fs[0]],fp[e.fs[1]]]):avg([V[e.a],V[e.b]]))});
+ const fid=fp.map(p=>{out.push(p);return out.length-1}),nf=[];
+ P.f.forEach((f,fi)=>f.forEach((a,k)=>{const b=f[(k+1)%f.length],z=f[(k-1+f.length)%f.length];nf.push([a,eid.get(ek(a,b)),fid[fi],eid.get(ek(z,a))])}));P.v=out;P.f=nf}
+// ---- escena e historial ----
+const snapM=()=>(world.children.map(m=>({p:m.userData.poly,c:"#"+m.material.color.getHexString(),t:[m.position.toArray(),[m.rotation.x,m.rotation.y,m.rotation.z],m.scale.toArray()],md:m.userData.mods,sm:m.userData.smooth,k:m.userData.keys})));
+const snap=()=>JSON.stringify({m:snapM(),l:lightsG.children.map(m=>({t:[m.position.toArray(),[m.rotation.x,m.rotation.y,m.rotation.z],m.scale.toArray()],d:m.userData.light||null,c:"#"+m.material.color.getHexString(),i:m.userData.i,k:m.userData.keys}))});
+function load(j){select(null);world.clear();lightsG.clear();let d=JSON.parse(j);if(Array.isArray(d))d={m:d,l:[]};d.l.forEach(o=>{const m=o.d?mkLight(o.d,o.c,o.i):mkCam();m.position.fromArray(o.t[0]);m.rotation.set(...o.t[1]);m.scale.fromArray(o.t[2]);m.userData.keys=o.k||{}});d.m.forEach(o=>{const m=mk(o.p,o.c);m.position.fromArray(o.t[0]);m.rotation.set(...o.t[1]);m.scale.fromArray(o.t[2]);Object.assign(m.userData,{mods:o.md,smooth:o.sm,keys:o.k});rebuild(m);world.add(m)})}
+function save(s){try{localStorage.setItem("forma3d2",s)}catch(e){}}
+function ui(){$("#undo").disabled=hi<=0;$("#redo").disabled=hi>=hist.length-1}
+function commit(){const s=snap();if(s===hist[hi])return;hist=hist.slice(0,hi+1);hist.push(s);if(hist.length>40)hist.shift();hi=hist.length-1;save(s);ui()}
+function go(d){const n=hi+d;if(n<0||n>=hist.length)return;const ci=world.children.indexOf(cur);hi=n;load(hist[hi]);save(hist[hi]);ui();
+ if(mode==="edit"){cur=world.children[ci];if(!cur)return setMode("obj");sel=cur;selV.clear();rebuild(cur);overlay();placePivot();sync()}}
+function toast(t){const e=$("#toast");e.textContent=t;e.style.display="block";clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display="none",3500)}
+function topOf(o){while(o.parent&&o.parent!==world&&o.parent!==lightsG)o=o.parent;return o}
+function select(o){sel=o;if(o&&mode==="obj"){tc.attach(o);box.setFromObject(o);box.visible=true}else if(mode!=="edit"){tc.detach();box.visible=false}sync()}
+function sync(){$("#none").style.display=sel?"none":"block";$("#props").style.display=sel?"flex":"none";if(!sel)return;const u=sel.userData;
+ $("#col").value="#"+sel.material.color.getHexString();$("#sx").value=sel.scale.x;$("#sy").value=sel.scale.y;$("#sz").value=sel.scale.z;
+ const mo=!!u.poly;$("#modbox").style.display=mo?"flex":"none";$("#litbox").style.display=u.light?"block":"none";if(mo){$("#sm").checked=u.smooth;$("#mir").checked=u.mods.mirror;$("#arn").value=u.mods.n;$("#aro").value=u.mods.off}if(u.light)$("#lint").value=u.i;
+ const k=Object.keys(u.keys);$("#kl").textContent=k.length?"Claves: "+k.join(", "):""}
+function add(t){const m=mk(prim(t),"#4f8cff");m.position.y=t==="toro"?.15:t==="plano"?.01:.5;world.add(m);select(m);commit()}
+function dup(){if(!sel)return;if(!sel.userData.poly){if(sel.userData.cam)return toast("Solo puede haber una cámara");const m=mkLight(sel.userData.light,"#"+sel.material.color.getHexString(),sel.userData.i);m.position.copy(sel.position).x+=.6;select(m);commit();return}const c=mk(JSON.parse(JSON.stringify(sel.userData.poly)),"#"+sel.material.color.getHexString());c.position.copy(sel.position);c.position.x+=.6;c.rotation.copy(sel.rotation);c.scale.copy(sel.scale);Object.assign(c.userData,JSON.parse(JSON.stringify({mods:sel.userData.mods,smooth:sel.userData.smooth})));rebuild(c);world.add(c);select(c);commit()}
+function del(){if(!sel)return;sel.parent.remove(sel);select(null);commit()}
+// ---- modos ----
+function setMode(m){if(m==="edit"&&(!sel||!sel.userData.poly))return toast("Primero selecciona una forma (no una luz ni la cámara) en modo Objeto");
+ if(mode==="edit"){clearOv();selV.clear();tc.detach()}const prev=mode;mode=m;document.body.dataset.mode=m;
+ document.querySelectorAll("[data-md]").forEach(b=>b.classList.toggle("on",b.dataset.md===m));
+ document.querySelectorAll("[data-for]").forEach(e=>e.style.display=e.dataset.for.includes(m)?"":"none");
+ $("#hint").textContent=DEFS[m];tc.detach();box.visible=false;
+ if(m==="edit"){cur=sel;rebuild(cur);overlay();placePivot()}
+ else{if(prev==="edit"&&cur)rebuild(cur);if(m==="obj"&&sel)select(sel)}sync()}
+function clearOv(){if(cur)cur.children.filter(c=>c.userData.ov).forEach(c=>cur.remove(c))}
+const selFaces=P=>P.f.map((f,i)=>f.every(v=>selV.has(v))?i:-1).filter(i=>i>=0);
+function overlay(){clearOv();if(mode!=="edit"||!cur)return;const P=cur.userData.poly,g=new THREE.Group(),S=new Set(),ls=[],sl=[];g.userData.ov=1;
+ P.f.forEach(f=>f.forEach((a,k)=>{const b=f[(k+1)%f.length],key=ek(a,b);if(S.has(key))return;S.add(key);ls.push(...P.v[a],...P.v[b]);if(selV.has(a)&&selV.has(b))sl.push(...P.v[a],...P.v[b])}));
+ const L=(a,c)=>new THREE.LineSegments(new THREE.BufferGeometry().setAttribute("position",new THREE.Float32BufferAttribute(a,3)),new THREE.LineBasicMaterial({color:c}));
+ g.add(L(ls,EC));if(sl.length)g.add(L(sl,0xffa020));
+ const pc=[];P.v.forEach((p,i)=>pc.push(...(selV.has(i)?[1,.63,.1]:VC)));const pg=new THREE.BufferGeometry();
+ pg.setAttribute("position",new THREE.Float32BufferAttribute(P.v.flat(),3));pg.setAttribute("color",new THREE.Float32BufferAttribute(pc,3));
+ g.add(new THREE.Points(pg,new THREE.PointsMaterial({size:7,sizeAttenuation:false,vertexColors:true,depthTest:false})));
+ const F=selFaces(P);if(F.length)g.add(new THREE.Mesh(buildGeo({v:P.v,f:F.map(i=>P.f[i])},false).geo,new THREE.MeshBasicMaterial({color:0xffa020,transparent:true,opacity:.35,side:THREE.DoubleSide,depthTest:false})));
+ cur.add(g)}
+function placePivot(){if(mode!=="edit"||!cur||!selV.size){tc.detach();return}const P=cur.userData.poly;cur.updateMatrixWorld(true);
+ pivot.position.copy(cur.localToWorld(new V3(...avg([...selV].map(i=>P.v[i])))));pivot.rotation.set(0,0,0);pivot.scale.set(1,1,1);pivot.updateMatrix();tc.attach(pivot)}
+function edited(){rebuild(cur);overlay();placePivot();commit()}
+function extrude(){const P=cur.userData.poly,F=selFaces(P);if(!F.length)return toast("Selecciona al menos una cara (modo Cara, tecla 3)");
+ const used=new Set(F.flatMap(fi=>P.f[fi])),nv=new Map(),cnt=new Map(),nn=[0,0,0],side=[];
+ used.forEach(i=>{nv.set(i,P.v.length);P.v.push([...P.v[i]])});
+ F.forEach(fi=>P.f[fi].forEach((a,k,f)=>{const key=ek(a,f[(k+1)%f.length]);cnt.set(key,(cnt.get(key)||0)+1)}));
+ F.forEach(fi=>{const f=P.f[fi],n=newell(P,f);nn[0]+=n[0];nn[1]+=n[1];nn[2]+=n[2];f.forEach((a,k)=>{const b=f[(k+1)%f.length];if(cnt.get(ek(a,b))===1)side.push([a,b,nv.get(b),nv.get(a)])});P.f[fi]=f.map(i=>nv.get(i))});
+ P.f.push(...side);const d=nz(nn);nv.forEach(i=>{P.v[i]=P.v[i].map((x,c)=>x+d[c]*.4)});selV=new Set(nv.values());edited()}
+function inset(){const P=cur.userData.poly,F=selFaces(P);if(!F.length)return toast("Selecciona al menos una cara (modo Cara, tecla 3)");const ns=new Set();
+ F.forEach(fi=>{const f=P.f[fi],c=avg(f.map(i=>P.v[i])),ni=f.map(i=>{P.v.push(P.v[i].map((x,j)=>x+(c[j]-x)*.25));ns.add(P.v.length-1);return P.v.length-1});f.forEach((a,k)=>{const k2=(k+1)%f.length;P.f.push([a,f[k2],ni[k2],ni[k]])});P.f[fi]=ni});selV=ns;edited()}
+function delFaces(){const P=cur.userData.poly,F=new Set(selFaces(P));if(!F.size)return toast("Selecciona al menos una cara");if(F.size===P.f.length)return toast("No puedes borrar todo el objeto aquí");
+ P.f=P.f.filter((f,i)=>!F.has(i));const m=new Map(),nv=[];P.f=P.f.map(f=>f.map(i=>{if(!m.has(i)){m.set(i,nv.length);nv.push(P.v[i])}return m.get(i)}));P.v=nv;selV=new Set();edited()}
+function divide(s){subdiv(cur.userData.poly,s);selV=new Set();if(cur.userData.poly.f.length>20000)toast("Cuidado: muchas caras, puede ir lento");edited()}
+// ---- interacción ----
+const ray=new THREE.Raycaster(),mv=new THREE.Vector2(),cv=renderer.domElement;
+function hit(e,o){const r=cv.getBoundingClientRect();mv.set((e.clientX-r.left)/r.width*2-1,-((e.clientY-r.top)/r.height)*2+1);ray.setFromCamera(mv,cam);return o?ray.intersectObject(o,false)[0]:ray.intersectObjects([...world.children,...lightsG.children],true)[0]}
+function pickEdit(e){const h=hit(e,cur);if(!e.shiftKey)selV.clear();if(h){const P=cur.userData.poly,f=P.f[cur.userData.tf[h.faceIndex]],p=cur.worldToLocal(h.point.clone());
+ if(sub==="f")f.forEach(i=>selV.add(i));else if(sub==="v")selV.add(f.reduce((b,i)=>d2(P.v[i],p)<d2(P.v[b],p)?i:b,f[0]));
+ else{let best=1e9,pr;f.forEach((a,k)=>{const b=f[(k+1)%f.length],d=d2(avg([P.v[a],P.v[b]]),p);if(d<best){best=d;pr=[a,b]}});pr.forEach(i=>selV.add(i))}}overlay();placePivot()}
+cv.addEventListener("pointerdown",e=>{down=[e.clientX,e.clientY,tc.axis]});
+cv.addEventListener("pointerup",e=>{if(!down||down[2]||Math.hypot(e.clientX-down[0],e.clientY-down[1])>4)return;if(camV||gizmoClick(e))return;
+ if(mode==="obj"){const h=hit(e);select(h?topOf(h.object):null)}else if(mode==="edit")pickEdit(e)});
+cv.addEventListener("pointerdown",e=>{if(mode!=="sculpt"||e.button||camV||inGizmo(e))return;const h=hit(e);if(!h)return;const m=topOf(h.object),P=m.userData.poly;if(!P)return;const adj=P.v.map(()=>[]);
+ P.f.forEach(f=>f.forEach((a,k)=>adj[a].push(f[(k+1)%f.length])));sc={m,adj};orbit.enabled=false;stroke(e)},true);
+cv.addEventListener("pointermove",e=>{if(sc)stroke(e)});
+addEventListener("pointerup",()=>{if(sc){sc=null;orbit.enabled=true;commit()}});
+function stroke(e){const h=hit(e,sc.m);if(!h)return;const m=sc.m,P=m.userData.poly,p=m.worldToLocal(h.point.clone()),n=h.face.normal,r=+$("#rad").value,s=+$("#str").value;
+ P.v.forEach((v,i)=>{const d=Math.sqrt(d2(v,p));if(d>=r)return;const w=(1-d/r)**2;
+  if(tool==="smo"){const A=sc.adj[i];if(!A.length)return;const t=avg(A.map(j=>P.v[j]));P.v[i]=v.map((x,c)=>x+(t[c]-x)*w*s)}
+  else{const k=(tool==="inf"?1:-1)*s*.08*w;P.v[i]=[v[0]+n.x*k,v[1]+n.y*k,v[2]+n.z*k]}});rebuild(m)}
+tc.addEventListener("dragging-changed",e=>{orbit.enabled=!e.value;
+ if(mode==="edit"&&cur){if(e.value){pivot.updateMatrix();const P=cur.userData.poly;drag={inv:pivot.matrix.clone().invert(),base:[...selV].map(i=>[i,new V3(...P.v[i])])}}else{drag=null;commit();placePivot();overlay()}}
+ else if(!e.value){commit();sync()}});
+tc.addEventListener("objectChange",()=>{if(mode==="edit"&&drag){pivot.updateMatrix();cur.updateMatrixWorld(true);const mw=cur.matrixWorld,L=mw.clone().invert().multiply(pivot.matrix.clone().multiply(drag.inv)).multiply(mw),P=cur.userData.poly;
+ drag.base.forEach(([i,p])=>{const q=p.clone().applyMatrix4(L);P.v[i]=[q.x,q.y,q.z]});rebuild(cur);overlay()}else sync()});
+// ---- animación ----
+function applyFrame(f){[...world.children,...lightsG.children].forEach(m=>{const ks=m.userData.keys,fr=Object.keys(ks).map(Number).sort((a,b)=>a-b);if(!fr.length)return;
+ const a=[...fr].reverse().find(x=>x<=f)??fr[0],b=fr.find(x=>x>=f)??fr[fr.length-1],t=a===b?0:(f-a)/(b-a),q=ks[a].map((x,i)=>x+(ks[b][i]-x)*t);
+ m.position.set(q[0],q[1],q[2]);m.rotation.set(q[3],q[4],q[5]);m.scale.set(q[6],q[7],q[8])})}
+function setFrame(f){frame=Math.max(0,Math.min(120,f));$("#fr").value=frame;$("#frl").textContent="Fotograma "+Math.round(frame);applyFrame(frame)}
+$("#fr").oninput=e=>setFrame(+e.target.value);
+function togglePlay(){playing=!playing;$("#play").textContent=playing?"⏸ Pausa":"▶ Reproducir";if(!playing){frame=Math.round(frame);commit()}}
+function key(){if(!sel)return toast("Selecciona un objeto para animarlo");if(mode==="edit")return toast("Vuelve al modo Objeto para insertar claves");sel.userData.keys[Math.round(frame)]=[...sel.position.toArray(),sel.rotation.x,sel.rotation.y,sel.rotation.z,...sel.scale.toArray()];commit();sync();toast("Clave guardada en el fotograma "+Math.round(frame))}
+// ---- interfaz ----
+document.querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>{if(mode!=="obj")setMode("obj");add(b.dataset.s)});
+document.querySelectorAll("[data-md]").forEach(b=>b.onclick=()=>setMode(b.dataset.md));
+function tmode(m){tc.setMode(m);document.querySelectorAll("[data-m]").forEach(b=>b.classList.toggle("on",b.dataset.m===m))}
+document.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>tmode(b.dataset.m));
+document.querySelectorAll("[data-u]").forEach(b=>b.onclick=()=>{sub=b.dataset.u;document.querySelectorAll("[data-u]").forEach(x=>x.classList.toggle("on",x===b))});
+document.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{tool=b.dataset.t;document.querySelectorAll("[data-t]").forEach(x=>x.classList.toggle("on",x===b))});
+$("#snap").onclick=e=>{const on=e.currentTarget.classList.toggle("on");tc.setTranslationSnap(on?.25:null);tc.setRotationSnap(on?Math.PI/12:null);tc.setScaleSnap(on?.1:null)};
+$("#undo").onclick=()=>go(-1);$("#redo").onclick=()=>go(1);$("#home").onclick=home;$("#dup").onclick=dup;$("#del").onclick=del;$("#play").onclick=togglePlay;$("#key").onclick=key;
+$("#ukey").onclick=()=>{if(sel){delete sel.userData.keys[Math.round(frame)];commit();sync()}};
+$("#all").onclick=()=>{if(cur){selV=new Set(cur.userData.poly.v.map((v,i)=>i));overlay();placePivot()}};
+$("#ext").onclick=extrude;$("#ins").onclick=inset;$("#delf").onclick=delFaces;$("#sub1").onclick=()=>divide(false);$("#sub2").onclick=()=>divide(true);
+$("#col").oninput=e=>{if(sel){sel.material.color.set(e.target.value);if(sel.userData.lt)sel.userData.lt.color.set(e.target.value)}};$("#col").onchange=commit;
+["x","y","z"].forEach(a=>{const e=$("#s"+a);e.oninput=()=>{if(sel)sel.scale[a]=+e.value};e.onchange=commit});
+$("#sm").onchange=e=>{if(sel){sel.userData.smooth=e.target.checked;rebuild(sel);if(mode==="edit")overlay();commit()}};
+$("#mir").onchange=e=>{if(sel){sel.userData.mods.mirror=e.target.checked;rebuild(sel);commit()}};
+[["#arn","n"],["#aro","off"]].forEach(([s,k])=>{const e=$(s);e.oninput=()=>{if(sel){sel.userData.mods[k]=+e.value;rebuild(sel)}};e.onchange=commit});
+// ---- luces, cámara, biselado ----
+const LG={point:()=>new THREE.SphereGeometry(.12,12,8),sun:()=>new THREE.OctahedronGeometry(.2),spot:()=>new THREE.ConeGeometry(.12,.3,12).rotateX(-Math.PI/2)};
+function mkLight(type,col="#ffe08a",i=type==="spot"?1.5:1){const m=new THREE.Mesh(LG[type](),new THREE.MeshBasicMaterial({color:col})),
+ l=type==="point"?new THREE.PointLight(0xffffff,i):type==="sun"?new THREE.DirectionalLight(0xffffff,i):new THREE.SpotLight(0xffffff,i,0,.6,.3);
+ l.color.set(col);m.add(l);m.userData={light:type,i,lt:l,keys:{}};lightsG.add(m);return m}
+function mkCam(){const m=new THREE.Mesh(new THREE.ConeGeometry(.2,.4,4).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:"#7aa2ff",wireframe:true})),c=new THREE.PerspectiveCamera(45,1,.1,500);
+ m.add(c);m.userData={cam:1,pc:c,keys:{}};lightsG.add(m);return m}
+document.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{if(mode!=="obj")setMode("obj");const m=mkLight(b.dataset.l);m.position.set(2+lightsG.children.length*.5,3,2);select(m);commit()});
+$("#addcam").onclick=()=>{if(activeCam())return toast("Ya hay una cámara en la escena");if(mode!=="obj")setMode("obj");const m=mkCam();m.position.set(4,3,5);m.lookAt(8,6,10);select(m);commit()};
+$("#studio").onclick=e=>{const on=!hemi.visible;hemi.visible=sun.visible=on;e.currentTarget.classList.toggle("on",on)};
+$("#camv").onclick=()=>{if(!activeCam())return toast("Primero añade una cámara");camV=!camV;$("#camv").classList.toggle("on",camV);marks(!camV);orbit.enabled=!camV;
+ if(camV){tc.detach();box.visible=false;toast("Mirando por la cámara. Pulsa otra vez para salir")}else if(sel&&mode==="obj")select(sel)};
+$("#shot").onclick=async()=>{const ac=activeCam()||cam;if(ac===cam)toast("No hay cámara: se usa la vista actual");const bv=box.visible,o=[grid,tc,box];o.forEach(x=>x.visible=false);marks(false);ac.aspect=W/H;ac.updateProjectionMatrix();renderer.render(scene,ac);
+ const url=cv.toDataURL("image/png");grid.visible=true;tc.visible=true;box.visible=bv;marks(!camV);out("render.png",Uint8Array.from(atob(url.split(",")[1]),c=>c.charCodeAt(0)).buffer,"Imagen guardada")};
+$("#lint").oninput=e=>{if(sel&&sel.userData.lt){sel.userData.i=+e.target.value;sel.userData.lt.intensity=+e.target.value}};$("#lint").onchange=commit;
+function compact(P){const m=new Map(),nv=[];P.f=P.f.map(f=>f.map(i=>{if(!m.has(i)){m.set(i,nv.length);nv.push(P.v[i])}return m.get(i)}));P.v=nv}
+function bevel(P,B,w){const V=P.v,E=new Map(),vc=V.map(()=>[]),sl=new Map(),mit=new Map(),cr=new Map(),nr=V.length;
+ P.f.forEach((f,fi)=>f.forEach((a,k)=>{const key=ek(a,f[(k+1)%f.length]);E.has(key)?E.get(key).push(fi):E.set(key,[fi]);vc[a].push([fi,k])}));
+ B=new Set([...B].filter(k=>E.get(k)&&E.get(k).length===2));if(!B.size)return false;
+ const dir=(a,x)=>nz(V[x].map((c,i)=>c-V[a][i])),pt=(a,...ds)=>V[a].map((c,i)=>c+ds.reduce((s,d)=>s+d[i]*w,0)),nv=p=>{V.push(p);return V.length-1},N=(f,k)=>[f[(k+f.length-1)%f.length],f[(k+1)%f.length]];
+ P.f.forEach(f=>f.forEach((a,k)=>{const[p,n]=N(f,k),bp=B.has(ek(a,p)),bn=B.has(ek(a,n));if(bp!==bn){const x=bp?n:p,key=a+">"+x;if(!sl.has(key))sl.set(key,nv(pt(a,dir(a,x))))}}));
+ const nf=P.f.map((f,fi)=>{const o=[];f.forEach((a,k)=>{const[p,n]=N(f,k),bp=B.has(ek(a,p)),bn=B.has(ek(a,n));let r;
+  if(bp&&bn){r=[nv(pt(a,dir(a,p),dir(a,n)))];mit.set(fi+"_"+k,r[0])}else if(bp||bn)r=[sl.get(a+">"+(bp?n:p))];
+  else{r=[sl.get(a+">"+p),sl.get(a+">"+n)].filter(x=>x!==undefined);if(!r.length)r=[a]}
+  if(bp||bn)cr.set(fi+"_"+k,r[0]);o.push(...r)});return o}),qd=[];
+ B.forEach(key=>{const[f1,f2]=E.get(key),F1=P.f[f1],F2=P.f[f2],k=F1.findIndex((a,i)=>ek(a,F1[(i+1)%F1.length])===key),a=F1[k],b=F1[(k+1)%F1.length],k2=F2.findIndex((x,i)=>x===b&&F2[(i+1)%F2.length]===a);if(k2<0)return;
+  qd.push([cr.get(f1+"_"+((k+1)%F1.length)),cr.get(f1+"_"+k),cr.get(f2+"_"+((k2+1)%F2.length)),cr.get(f2+"_"+k2)])});
+ const fl=[];for(let a=0;a<nr;a++){const c=vc[a];if(c.length<3||!c.every(([fi,k])=>mit.has(fi+"_"+k)))continue;const ring=[];let fi=c[0][0],k=c[0][1];
+  do{ring.push(mit.get(fi+"_"+k));const f=P.f[fi],g=E.get(ek(a,f[(k+1)%f.length])).find(x=>x!==fi);if(g===undefined)break;fi=g;k=P.f[g].indexOf(a)}while(fi!==c[0][0]&&ring.length<24);
+  const sn=c.reduce((s,[fi])=>{const n=newell(P,P.f[fi]);return[s[0]+n[0],s[1]+n[1],s[2]+n[2]]},[0,0,0]),rn=newell(P,ring);if(rn[0]*sn[0]+rn[1]*sn[1]+rn[2]*sn[2]<0)ring.reverse();fl.push(ring)}
+ P.f=[...nf,...qd,...fl];compact(P);return true}
+function doBevel(){const P=cur.userData.poly,B=new Set();P.f.forEach(f=>f.forEach((a,k)=>{const b=f[(k+1)%f.length];if(selV.has(a)&&selV.has(b))B.add(ek(a,b))}));
+ if(!B.size)return toast("Selecciona al menos una arista (modo Arista, tecla 2) o una cara");if(!bevel(P,B,+$("#bw").value))return toast("Esa arista no se puede biselar (debe unir dos caras)");selV=new Set();edited()}
+$("#bev").onclick=doBevel;
+$("#imp").onclick=()=>$("#file").click();
+function toPolys(o){o.updateMatrixWorld(true);const bb=new THREE.Box3().setFromObject(o),sz=bb.getSize(new V3()),k=2/Math.max(sz.x,sz.y,sz.z,1e-6),c=bb.getCenter(new V3()),res=[];
+ o.traverse(ch=>{if(!ch.isMesh||!ch.geometry.attributes.position)return;const g=ch.geometry,pa=g.attributes.position,ix=g.index,mp=new Map(),v=[],f=[];
+  const id=i=>{const p=new V3().fromBufferAttribute(pa,i).applyMatrix4(ch.matrixWorld),q=[(p.x-c.x)*k,(p.y-bb.min.y)*k,(p.z-c.z)*k],key=q.map(x=>x.toFixed(4)).join();if(!mp.has(key)){mp.set(key,v.length);v.push(q)}return mp.get(key)};
+  const n=ix?ix.count:pa.count;for(let i=0;i<n;i+=3){const t=[0,1,2].map(j=>id(ix?ix.getX(i+j):i+j));if(t[0]!==t[1]&&t[1]!==t[2]&&t[0]!==t[2])f.push(t)}
+  const mt=Array.isArray(ch.material)?ch.material[0]:ch.material;if(f.length)res.push({v,f,c:mt&&mt.color?"#"+mt.color.getHexString():"#bbbbbb"})});return res}
+$("#file").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;const n=f.name.toLowerCase();if(mode!=="obj")setMode("obj");
+ try{let o;if(n.endsWith(".obj"))o=new THREE.OBJLoader().parse(await f.text());
+  else if(n.endsWith(".glb")||n.endsWith(".gltf")){const b=await f.arrayBuffer();o=await new Promise((ok,no)=>new THREE.GLTFLoader().parse(b,"",g=>ok(g.scene),no))}
+  else return toast("Formato no compatible. Usa .obj, .glb o .gltf");
+  const ps=toPolys(o);if(!ps.length)return toast("El archivo no tiene mallas");let last;ps.forEach(p=>{last=mk({v:p.v,f:p.f},p.c);world.add(last)});select(last);commit();toast("Importado: "+f.name)}catch(err){toast("No se pudo importar ese archivo")}};
+async function out(name,data,msg){try{const d=window.claude&&await claude.use("downloads");if(!d)return toast("Exportar no está disponible en esta vista");await d.save({filename:name,data});toast(msg)}catch(e){if(!e||e.code!=="declined")toast("No se pudo exportar")}}
+$("#eobj").onclick=()=>{if(!world.children.length)return toast("Añade una forma primero");setMode("obj");out("modelo-obj.txt",new THREE.OBJExporter().parse(world),"Listo. Cambia la extensión a .obj para usarlo en otros programas")};
+$("#egl").onclick=()=>{if(!world.children.length)return toast("Añade una forma primero");setMode("obj");new THREE.GLTFExporter().parse(world,r=>out("modelo-gltf.json",JSON.stringify(r),"Listo. Cambia la extensión a .gltf para usarlo en otros programas"),{binary:false})};
+addEventListener("keydown",e=>{const t=e.target;if(/INPUT|TEXTAREA/.test(t.tagName)&&t.type!=="range"&&t.type!=="color"&&t.type!=="checkbox")return;const k=e.key.toLowerCase(),c=e.ctrlKey||e.metaKey;
+ if(c&&k==="z"){e.preventDefault();go(e.shiftKey?1:-1)}else if(c&&k==="y"){e.preventDefault();go(1)}
+ else if(k==="tab"){e.preventDefault();setMode(mode==="edit"?"obj":"edit")}
+ else if(mode==="edit"&&"123".includes(k)&&k.length===1){document.querySelector('[data-u="'+"vef"["123".indexOf(k)]+'"]').click()}
+ else if(mode==="edit"&&k==="e")extrude();else if(mode==="edit"&&k==="b")doBevel();else if(mode==="edit"&&k==="i")inset();else if(mode==="edit"&&k==="a")$("#all").click();else if(mode==="edit"&&k==="x")delFaces();
+ else if(e.shiftKey&&k==="d"&&mode==="obj")dup();else if(k==="g")tmode("translate");else if(k==="r")tmode("rotate");else if(k==="s")tmode("scale");
+ else if(k==="k")key();else if(k===" "){e.preventDefault();togglePlay()}else if(k==="f")home();else if(mode==="obj"&&(k==="delete"||k==="backspace"))del();else if(k==="escape"&&mode==="obj")select(null)});
+const tip=$("#tip"),hint=$("#hint");
+document.addEventListener("mouseover",e=>{const t=e.target.closest&&e.target.closest("[data-tip]");
+ if(!t){tip.style.display="none";hint.textContent=DEFS[mode];return}
+ tip.textContent=hint.textContent=t.dataset.tip;tip.style.display="block";const r=t.getBoundingClientRect(),w=tip.offsetWidth,h=tip.offsetHeight;
+ tip.style.left=Math.max(6,Math.min(innerWidth-w-6,r.left+r.width/2-w/2))+"px";tip.style.top=(r.bottom+h+10<innerHeight?r.bottom+8:r.top-h-8)+"px"});
+try{const s=localStorage.getItem("forma3d2");if(s){load(s);hist=[s];hi=0}}catch(e){}
+if(!world.children.length){add("cubo");select(null)}
+ui();setMode("obj");
+</script></body></html>
